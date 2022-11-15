@@ -7,10 +7,9 @@
 - Send `error response` if a second session pa  
 # Solution 
 - Use two structures  
-    1. list of session parameters changed, it will be stored in `local memory`    
+    1. list of changed session parameters, it will be stored in `local memory`    
     2. list of tuples of `client id`, `session parameter name` and `session parameter value`, it will be stored in `shared memory`. 
-- Update the session parameters in the `local memory`
-- If `COMMIT` is called update the session parameters stored at the `shared memory` with the changed variables at the  
+- If `COMMIT` is called update the session parameters stored at the `shared memory` with the changed variable
 
 # Handling of transaction in various transaction states:
 The various states for a transaction are
@@ -43,9 +42,14 @@ The various states for a transaction are
 	TBLOCK_SUBABORT_RESTART		/* failed subxact, ROLLBACK TO received */
 ```
 
-If `COMMIT` is called and the current the `local session` parameters will be updated to the `shared memory` for the following states: 
-- 1. TBLOCK_END i.e. when `COMMIT` is received
-- 2. TBLOCK_SUBCOMMIT i.e. when `
+## Updating the Shared Memory
+The local memory will contain only the list of session parameters that might had changed.
+So calling the  `YbUpdateSharedMemory();` function on regular basis won't create any bugs; 
+provided the `YbUpdateSharedMemory();` is being called at the end of the transaction.
+For both `COMMIT` and `ROLLBACK` its valied; but since in case of `ROLLBACK` there won't be any 
+changes so, only when `COMMIT` message is received the `YbUpdateSharedMemory();` function is called.
+Along with it, it will also be called for `single-query transaction`.
 
-For all cases at the end the clean up of the transaction will happen.
-Task 
+## Clean up the local memory
+The local memory clean-up process must be selectively done only in case of `BEGIN` message or ` single-query transaction` or after updating the shared memory. Because if performed at a wrong instant, may remove the `session parameter` name that might had 
+changed at the end of the transaction.
